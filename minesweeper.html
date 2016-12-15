@@ -1,0 +1,160 @@
+<!--<%@ page contentType="text/html;charset=UTF-8" language="java" %>-->
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <style>
+        .trapArea{
+            height: 50px;
+            width: 50px;
+            background-color: #1e90ff;
+            border: 2px solid #808080;
+            font-size: 3em;
+            float: left;
+            cursor: pointer;
+        }
+        .trapAreaClick{
+            height: 50px;
+            width: 50px;
+            background-color: #eafff8;
+            border: 2px solid #808080;
+            font-size: 3em;
+            float: left;
+            cursor: default;
+        }
+        #sweepMinArea{
+            text-align: center;width:486px;height:486px;
+            border:5px solid gainsboro;
+            position:relative;left: 35%;top: 20%;
+        }
+    </style>
+    <script src="jquery.js"></script>
+</head>
+<body>
+<div id="sweepMinArea">
+
+</div>
+<div id="mineTemplate" style="display: none">
+    <div class="trapArea" id="4_5" mineCount="3" turned="false"></div>
+</div>
+<script>
+    //初始化地雷信息
+    $(function(){
+        var totalMine = new Number(10);
+        var maxCol = new Number(9);
+        var maxRow = new Number(9);
+        //var arrayInfo = new Array(maxRow);
+        var mineTemplate = $('div#mineTemplate div.trapArea');
+        //初始化界面
+        for(var i=0;i<maxRow;i++){
+            var arrayCol =  new Array(maxCol);
+            for(var j=0;j<maxCol;j++){
+                //arrayCol[j]=0;
+                var trapArea = mineTemplate.clone();
+                trapArea.attr('id',i+'_'+j).attr('mineCount',0);
+                $('div#sweepMinArea').append(trapArea);
+            }
+            //arrayInfo[i] =arrayCol;
+        }
+        //布置地雷   -1表示地雷
+        for(var i = 0;i<totalMine;i++){
+            var rowNum = Math.ceil(Math.random()*(maxRow-1));
+            var colNum = Math.ceil(Math.random()*(maxCol-1));
+            while($('div#'+rowNum+'_'+colNum).attr('mineCount')=='-1'){
+                rowNum = Math.ceil(Math.random()*(maxRow-1));
+                colNum = Math.ceil(Math.random()*(maxCol-1));
+                continue;
+            }
+            $('div#'+rowNum+'_'+colNum).attr('mineCount',-1);
+        }
+        console.log($('div#sweepMinArea div[mineCount='+'-1'+']').length);
+        //计算当前区块周围地雷数量
+        function calculateMineCount(row,col){
+            var currentBlock = $('div#'+row+'_'+col);
+            if(parseInt(currentBlock.attr('mineCount')) == -1){//当前区域是地雷，则不参加统计计算
+                return;
+            }
+            var minRow1 = row-1<0?0:row-1;
+            var maxRow1 = row+1>(maxRow-1)?(maxRow-1):row+1;
+            var minCol1 = col-1<0?0:col-1;
+            var maxCol1 = col+1>(maxCol-1)?(maxCol-1):col+1;
+            var mineCount = 0;
+            for(var i=minRow1;i<=maxRow1;i++){
+                for(var j=minCol1;j<=maxCol1;j++){
+                    if(i==row&&j==col){//当前区块不参加统计计算
+                        continue;
+                    }
+                    if(parseInt($('div#'+i+'_'+j).attr('mineCount'))==-1){
+                        mineCount+=1;
+                    }
+                }
+            }
+            currentBlock.attr('mineCount',mineCount);
+        }
+        //统计并更新所有区块周围的地雷数量
+        for(var i=0;i<maxRow;i++){
+            for(var j=0;j<maxCol;j++){
+                calculateMineCount(i,j);
+            }
+        }
+        //绑定响应事件
+        $('div#sweepMinArea div.trapArea').on('click',function(){
+            if($(this).attr('turned')=='true'){//每个区域只翻一次
+                return;
+            }
+            $(this).attr('turned','true');//此区域以探查
+            var mineCount = $(this).attr('mineCount');
+            $(this).addClass('trapAreaClick').removeClass('trapArea');
+            //当前区域是雷
+            if(parseInt(mineCount)==-1){//Game Over!
+                $(this).text('屎');
+                alert('恭喜您踩到一坨屎!');
+                return;
+            }
+            //周围有雷，周围不翻开
+            if(parseInt(mineCount)>0){
+                $(this).text(mineCount);
+            }
+            else{//周围没有雷。周围都翻开
+                var row = parseInt($(this).attr('id').split('_')[0]);
+                var col = parseInt($(this).attr('id').split('_')[1]);
+                overTurnAround(row,col);
+            }
+            //判断是否结束
+            if($('div#sweepMinArea div[mineCount='+'-1'+']').length==$('div#sweepMinArea div.trapArea').length){
+                alert('您顺利的绕开了所有的屎！')
+            }
+        });
+        //翻转周围的区域，给予部分提示
+        function overTurnAround(row,col){
+            var minRow1 = row-1<0?0:row-1;
+            var maxRow1 = row+1>(maxRow-1)?(maxRow-1):row+1;
+            var minCol1 = col-1<0?0:col-1;
+            var maxCol1 = col+1>(maxCol-1)?(maxCol-1):col+1;
+            for(var i=minRow1;i<=maxRow1;i++){
+                for(var j=minCol1;j<=maxCol1;j++){
+                    if(i==row&&j==col){//中心区块忽略
+                        continue;
+                    }
+                    var currentArea = $('div#'+i+'_'+j);
+                    if(currentArea.attr('turned')=='true'){//已探查区域忽略
+                        continue;
+                    }
+                    currentArea.attr('turned','true');
+                    currentArea.addClass('trapAreaClick').removeClass('trapArea');
+                    var currentMineCount = parseInt(currentArea.attr('mineCount'));
+                    if(currentMineCount > 0){
+                        currentArea.text(currentMineCount);
+                    }
+                    else if(currentMineCount == 0){
+                        overTurnAround(i,j);
+                    }
+                }
+            }
+        }
+    });
+
+
+</script>
+</body>
+
+</html>
